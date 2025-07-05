@@ -1,0 +1,32 @@
+
+#include "WQ25128J_Flash.h"
+
+extern SPI_HandleTypeDef hspi2;
+
+#define csLOW()		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_RESET)
+#define csHIGH()	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_SET)
+
+#define BLOCKS		256
+
+void Flash_Reset(void)
+{
+	uint8_t data[2];
+	data[0] = 0x66;		//Enable Reset
+	data[1] = 0x99;		//Reset
+	csLOW();
+	HAL_SPI_Transmit(&hspi2, data, 2, 100);
+	csHIGH();
+}
+
+uint32_t Read_ID(void)
+{
+	uint8_t data = 0x9F;
+	uint8_t read_data[3];
+
+	csLOW();
+	HAL_SPI_Transmit(&hspi2, data, 1, 100);
+	HAL_SPI_Receive(&hspi2, read_data, 3, 300);
+	csHIGH();
+
+	return ((read_data[0] << 16) | (read_data[1] << 8) | (read_data[2]));
+}

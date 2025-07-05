@@ -1,0 +1,26 @@
+# STM32CubeIDE / Keil / EWARM ignore list
+
+# Build directories
+/Debug/
+/Release/
+
+# STM32CubeIDE generated
+*.launch
+*.settings/
+*.svd
+*.ioc
+
+# Binary files
+*.elf
+*.hex
+*.bin
+*.map
+*.list
+
+# Object files
+*.o
+*.d
+
+# IDE files
+*.log
+*.user

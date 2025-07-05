@@ -1,0 +1,8 @@
+
+#include "WQ25128J_Flash.h"
+
+extern SPI_HandleTypeDef hspi2;
+
+#define csLOW()		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_RESET)
+#define csHIGH()	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_SET)
+

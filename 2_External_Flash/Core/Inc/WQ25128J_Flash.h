@@ -1,0 +1,20 @@
+/*
+ * WQ25128J_Flash.h
+ *
+ *  Created on: Jul 4, 2025
+ *      Author: Venkatesh J
+ */
+
+#ifndef INC_WQ25128J_FLASH_H_
+#define INC_WQ25128J_FLASH_H_
+
+#include "main.h"
+
+uint32_t Read_ID(void);
+void Flash_Reset(void);
+void Flash_Read(uint32_t startPage, uint8_t offset, uint32_t size, uint8_t *data);
+void Flash_Write(uint32_t page, uint16_t offset, uint32_t size, uint8_t *data);
+void Flash_Erase_sector(uint16_t sector);
+uint8_t Flash_ReadStatus(void);
+
+#endif /* INC_WQ25128J_FLASH_H_ */

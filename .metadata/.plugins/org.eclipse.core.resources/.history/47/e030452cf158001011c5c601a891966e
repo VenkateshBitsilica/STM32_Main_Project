@@ -1,0 +1,169 @@
+
+#include "WQ25128J_Flash.h"
+
+extern SPI_HandleTypeDef hspi2;
+
+#define csLOW()		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_RESET)
+#define csHIGH()	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_SET)
+
+#define BLOCKS		256
+
+void SPI_Write(uint8_t *data, uint32_t len)
+{
+	HAL_SPI_Transmit(&hspi2, data, len, 1000);
+}
+
+void SPI_Read(uint8_t *data, uint32_t len)
+{
+	HAL_SPI_Receive(&hspi2, data, len, 1000);
+}
+void Flash_Reset(void)
+{
+	uint8_t data[2];
+	data[0] = 0x66;		//Enable Reset
+	data[1] = 0x99;		//Reset
+	csLOW();
+	HAL_SPI_Transmit(&hspi2, data, 2, 100);
+	csHIGH();
+}
+
+uint32_t Read_ID(void)
+{
+	uint8_t data = 0x9F;
+	uint8_t read_data[3];
+
+	csLOW();
+	HAL_SPI_Transmit(&hspi2, &data, 1, 100);
+	HAL_SPI_Receive(&hspi2, read_data, 3, 300);
+	csHIGH();
+
+	return ((read_data[0] << 16) | (read_data[1] << 8) | (read_data[2]));
+}
+
+void Flash_Read(uint32_t startPage, uint8_t offset, uint32_t size, uint8_t *data)
+{
+	uint8_t read_addr[4];
+	uint32_t memAddr = (startPage*256) + offset;
+
+	read_addr[0] = 0x03;		//Enables the Read data in Flash
+	read_addr[1] = (memAddr >> 16) & 0xFF;
+	read_addr[2] = (memAddr >> 8) & 0xFF;
+	read_addr[3] = memAddr & 0xFF;
+
+	csLOW();
+
+	SPI_Write(read_addr, 4);
+
+	SPI_Read(data, size);
+
+	csHIGH();
+}
+
+void Write_enable(void)
+{
+	uint8_t data = 0x06; 	//Enable Write
+
+	csLOW();
+	SPI_Write(&data, 1);
+	csHIGH();
+
+	HAL_Delay(5);
+}
+
+void Write_disable(void)
+{
+	uint8_t data = 0x04; 	//Enable Write
+
+	csLOW();
+	SPI_Write(&data, 1);
+	csHIGH();
+
+	HAL_Delay(5);
+}
+
+uint32_t bytes_to_write(uint32_t size, uint16_t offset)
+{
+	if((size+offset)<256) return size;
+	else return (256-offset);
+}
+
+void Flash_Erase_sector(uint16_t sector)
+{
+	uint8_t read_addr[4];
+	uint32_t memAddr = sector*16*256;	//Each sector contains 16 pages * 256 bytes
+
+	Write_enable();
+
+	read_addr[0] = 0x20;		//Enables the Read data in Flash
+	read_addr[1] = (memAddr >> 16) & 0xFF;
+	read_addr[2] = (memAddr >> 8) & 0xFF;
+	read_addr[3] = memAddr & 0xFF;
+
+	csLOW();
+
+	SPI_Write(read_addr, 4);
+	csHIGH();
+
+	HAL_Delay(450);	//for erasing it need 400ms delay as per datasheet
+
+	Write_disable();
+}
+
+void Flash_Write(uint32_t page, uint16_t offset, uint32_t size, uint8_t *data)
+{
+	uint8_t data[266];
+	uint32_t startPage = page;
+	uint32_t endPage = startPage + ((size+offset-1)/256);
+	uint32_t numPages = endPage - startPage+1;
+
+	uint16_t startSector = startPage/16;
+	uint16_t endSector = endPage/16;
+	uint16_t numSector = endSector-startSector+1;
+
+	for(uint16_t i=0; i<numSector; i++)
+	{
+		Flash_Erase_sector(startSector++);
+	}
+
+	uint32_t dataPosition = 0;
+
+	//Write data
+	for(uint32_t i=0; i<numPages; i++)
+	{
+		uint32_t memAddr = (startPage*256) + offset;
+		uint16_t bytesremaining = bytes_to_write(size, offset);
+		uint32_t indx = 0;
+
+		Write_enable();
+
+		read_addr[0] = 0x02;		//Enables the Read data in Flash
+		read_addr[1] = (memAddr >> 16) & 0xFF;
+		read_addr[2] = (memAddr >> 8) & 0xFF;
+		read_addr[3] = memAddr & 0xFF;
+
+		indx = 4;
+
+		uint16_t bytestosend = bytesremaining + indx;
+
+		for(uint16_t i=0; i< bytesremaining; i++)
+		{
+			data[indx++] = data[i+dataPosition];
+		}
+		csLOW();
+
+		SPI_Write(data, bytestosend);
+		csHIGH();
+
+		startPage++;
+		offset = 0;
+		size = size - bytesremaining;
+		dataPosition = dataPosition + bytesremaining;
+
+		HAL_Delay(5);
+
+		Write_disable();
+	}
+}
+
+
+

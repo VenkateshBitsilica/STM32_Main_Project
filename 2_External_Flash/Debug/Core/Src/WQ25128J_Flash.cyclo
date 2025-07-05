@@ -1,0 +1,11 @@
+../Core/Src/WQ25128J_Flash.c:11:6:SPI_Write	1
+../Core/Src/WQ25128J_Flash.c:16:6:SPI_Read	1
+../Core/Src/WQ25128J_Flash.c:20:6:Flash_Reset	1
+../Core/Src/WQ25128J_Flash.c:30:10:Read_ID	1
+../Core/Src/WQ25128J_Flash.c:43:6:Flash_Read	1
+../Core/Src/WQ25128J_Flash.c:62:6:Write_enable	1
+../Core/Src/WQ25128J_Flash.c:73:6:Write_disable	1
+../Core/Src/WQ25128J_Flash.c:84:10:bytes_to_write	2
+../Core/Src/WQ25128J_Flash.c:90:6:Flash_Erase_sector	1
+../Core/Src/WQ25128J_Flash.c:112:6:Flash_Write	4
+../Core/Src/WQ25128J_Flash.c:168:9:Flash_ReadStatus	1

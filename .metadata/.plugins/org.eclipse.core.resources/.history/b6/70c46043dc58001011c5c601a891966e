@@ -1,0 +1,13 @@
+/*
+ * WQ25128J_Flash.c
+ *
+ *  Created on: Jul 4, 2025
+ *      Author: Venkatesh J
+ */
+
+#include "main.h"
+#include "WQ25128J_Flash.h"
+
+extern SPI_HandleTypeDef hspi2;
+
+#define csLOW()		HAL_GPIO_W
