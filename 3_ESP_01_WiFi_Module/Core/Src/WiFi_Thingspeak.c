@@ -123,43 +123,42 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   //char api[58] = "https://api.thingspeak.com/update?api_key=BRJE1GXSM5UK5UNL";
-   char api[58] = "/update?api_key=BRJE1GXSM5UK5UNL";
-   uint8_t f1;
-   uint32_t f2;
+//   char api[58] = "/update?api_key=BRJE1GXSM5UK5UNL";
+//   uint8_t f1;
+//   uint32_t f2;
    char ATcommand[100];
    char toPost[150];
    uint8_t rxBuffer[150] = {0};
    uint8_t ATisOK;
 
-   sprintf(ATcommand,"AT+RST\r\n");
-   memset(rxBuffer,0,sizeof(rxBuffer));
-   HAL_UART_Transmit(&huart1,(uint8_t *)ATcommand,strlen(ATcommand),1000);
-   HAL_UART_Receive (&huart1, rxBuffer, 512, 100);
-   HAL_Delay(500);
+	sprintf(ATcommand,"AT+RST\r\n");
+	HAL_UART_Transmit(&huart1,(uint8_t *)ATcommand,strlen(ATcommand),1000);
+	HAL_UART_Receive (&huart1, rxBuffer, 512, 100);
+	printf("RESET Response:\r\n%s\r\n", rxBuffer);
+	HAL_Delay(500);
 
-   ATisOK = 0;
-   while(!ATisOK){
-     sprintf(ATcommand,"AT+CWMODE_CUR=1\r\n");
-     memset(rxBuffer,0,sizeof(rxBuffer));
-     HAL_UART_Transmit(&huart1,(uint8_t *)ATcommand,strlen(ATcommand),1000);
-     HAL_UART_Receive (&huart1, rxBuffer, 512, 1000);
-     if(strstr((char *)rxBuffer,"OK")){
-       ATisOK = 1;
-     }
-     HAL_Delay(500);
-   }
+	// Set Wi-Fi mode to Station
+	  printf("Setting WiFi Mode = Station...\r\n");
+	  sprintf(ATcommand, "AT+CWMODE_CUR=1\r\n");
+	  memset(rxBuffer, 0, sizeof(rxBuffer));
+	  HAL_UART_Transmit(&huart1, (uint8_t *)ATcommand, strlen(ATcommand), 1000);
+	  HAL_UART_Receive(&huart1, rxBuffer, sizeof(rxBuffer), 1000);
+	  printf("CWMODE Response:\r\n%s\r\n", rxBuffer);
 
-   ATisOK = 0;
-   while(!ATisOK){
-     sprintf(ATcommand,"AT+CWJAP_CUR=\"venky\",\"11223344\"\r\n");
-     memset(rxBuffer,0,sizeof(rxBuffer));
-     HAL_UART_Transmit(&huart1,(uint8_t *)ATcommand,strlen(ATcommand),1000);
-     HAL_UART_Receive (&huart1, rxBuffer, 512, 20000);
-     if(strstr((char *)rxBuffer,"OK")){
-       ATisOK = 1;
-     }
-     HAL_Delay(500);
-   }
+	  printf("Connecting to WiFi: venky...\r\n");
+	  sprintf(ATcommand, "AT+CWJAP_CUR=\"venky\",\"11223344\"\r\n");
+	  HAL_UART_Transmit(&huart1, (uint8_t *)ATcommand, strlen(ATcommand), 1000);
+
+	  // Use the new function to wait for full response
+	  if (ESP_WaitForResponse("OK", 15000) || ESP_WaitForResponse("WIFI GOT IP", 15000))
+	  {
+	      printf("WiFi Connected Successfully!\r\n");
+	  }
+	  else
+	  {
+	      printf("WiFi Connection Failed!\r\n");
+	  }
+
 
    ATisOK = 0;
    while(!ATisOK){
@@ -167,46 +166,73 @@ int main(void)
      memset(rxBuffer,0,sizeof(rxBuffer));
      HAL_UART_Transmit(&huart1,(uint8_t *)ATcommand,strlen(ATcommand),1000);
      HAL_UART_Receive (&huart1, rxBuffer, 512, 1000);
-     if(strstr((char *)rxBuffer,"OK")){
-       ATisOK = 1;
+     if (ESP_WaitForResponse("OK", 5000))
+     {
+    	 ATisOK = 1;
      }
-     HAL_Delay(500);
+
    }
 
     /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
+   uint32_t counter = 0;
 
-	  for(f1=0; f1<101; f1=f1+20)
-	    {
-	      sprintf(ATcommand,"AT+CIPSTART=\"TCP\",\"api.thingspeak.com\",80\r\n");
-	      memset(rxBuffer,0,sizeof(rxBuffer));
-	      HAL_UART_Transmit(&huart1,(uint8_t *)ATcommand,strlen(ATcommand),1000);
-	      HAL_UART_Receive (&huart1, rxBuffer, 512, 1000);
-	      HAL_Delay(500);
+   while (1)
+   {
+       printf("Connecting to ThingSpeak...\r\n");
 
-	      f2 = HAL_GetTick();
-	      //sprintf(toPost,"GET %s&field1=%d&field2=%lu\r\n",api,f1,f2);
-	      sprintf(toPost, "GET %s&field1=%d&field2=%lu HTTP/1.1\r\nHost: api.thingspeak.com\r\nConnection: close\r\n\r\n", api, f1, f2);
-	      sprintf(ATcommand,"AT+CIPSEND=%d\r\n",strlen(toPost));
-	      memset(rxBuffer,0,sizeof(rxBuffer));
-	      HAL_UART_Transmit(&huart1,(uint8_t *)ATcommand,strlen(ATcommand),1000);
-	      HAL_UART_Receive (&huart1, rxBuffer, 512, 1000);
-	      if(strstr((char *)rxBuffer,">"))
-	      {
-	        memset(rxBuffer,0,sizeof(rxBuffer));
-	        HAL_UART_Transmit(&huart1,(uint8_t *)toPost,strlen(toPost),1000);
-	        HAL_UART_Receive (&huart1, rxBuffer, 512, 1000);
-	      }
-	      HAL_Delay(15000);
-	    }
-    /* USER CODE END WHILE */
+       // Start TCP connection
+       sprintf(ATcommand, "AT+CIPSTART=\"TCP\",\"api.thingspeak.com\",80\r\n");
+       HAL_UART_Transmit(&huart1, (uint8_t *)ATcommand, strlen(ATcommand), 1000);
 
-    /* USER CODE BEGIN 3 */
-  }
+       if (ESP_WaitForResponse("CONNECT", 5000) || ESP_WaitForResponse("ALREADY CONNECTED", 5000))
+       {
+           printf("Connected to ThingSpeak server.\r\n");
+
+           // Prepare HTTP GET string
+           sprintf(toPost,
+                   "GET /update?api_key=YE5E28DP59ZS9QLX&field1=%lu HTTP/1.1\r\n"
+                   "Host: api.thingspeak.com\r\n"
+                   "Connection: close\r\n\r\n", counter);
+
+           // Send AT+CIPSEND
+           sprintf(ATcommand, "AT+CIPSEND=%d\r\n", strlen(toPost));
+           HAL_UART_Transmit(&huart1, (uint8_t *)ATcommand, strlen(ATcommand), 1000);
+
+           if (ESP_WaitForResponse(">", 3000))
+           {
+               // Send actual GET request
+               HAL_UART_Transmit(&huart1, (uint8_t *)toPost, strlen(toPost), 1000);
+
+               if (ESP_WaitForResponse("OK", 5000) || ESP_WaitForResponse("SEND OK", 5000))
+               {
+                   printf("Data sent to ThingSpeak: Counter = %lu\r\n", counter);
+               }
+               else
+               {
+                   printf("Failed to send data.\r\n");
+               }
+           }
+           else
+           {
+               printf("CIPSEND failed. ESP8266 not ready.\r\n");
+           }
+
+           counter++;
+           if(counter > 5)
+        	   counter = 0;
+       }
+       else
+       {
+           printf("ThingSpeak TCP connection failed.\r\n");
+       }
+
+       HAL_Delay(15000);
+       /* USER CODE BEGIN 3 */
+   }
+
   /* USER CODE END 3 */
 }
 
