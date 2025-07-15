@@ -1,6 +1,17 @@
 /*
+ * This file is used to perform read and write operations on the internal flash memory
+ * of the STM32L476RG microcontroller.
  *
+ * Pages 1 to 10 (each 2 KB in size) are used in a circular buffer fashion
+ * to store sensor data persistently across resets.
+ *
+ * Although only a small amount of data is stored per write, entire 2 KB pages are used
+ * to simplify page-based erase and write operations.
+ *
+ * Each page holds one sensor record, and when page 10 is reached,
+ * the buffer wraps around to page 1, overwriting old data.
  */
+
 #include "Flash_Page.h"
 
 uint32_t Pageerror;
