@@ -134,7 +134,7 @@ int main(void)
 	       * Pulse width(micro sec)/148 = distance(inch)
 	       */
 	      Distance = (Value2-Value1)* 0.034/2;
-	      HAL_Delay(300);
+	      HAL_Delay(1000);
 
     /* USER CODE END WHILE */
 

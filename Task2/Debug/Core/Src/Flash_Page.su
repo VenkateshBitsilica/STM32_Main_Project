@@ -1,0 +1,6 @@
+../Core/Src/Flash_Page.c:9:6:write_data	184	static
+../Core/Src/Flash_Page.c:25:6:read_data	16	static
+../Core/Src/Flash_Page.c:36:6:sample_main	80	static
+../Core/Src/Flash_Page.c:59:6:page_erase	16	static
+../Core/Src/Flash_Page.c:75:6:page_write	40	static
+../Core/Src/Flash_Page.c:107:6:page_read	128	static
