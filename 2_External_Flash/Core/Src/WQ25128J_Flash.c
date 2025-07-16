@@ -89,19 +89,19 @@ uint32_t bytes_to_write(uint32_t size, uint16_t offset)
 
 void Flash_Erase_sector(uint16_t sector)
 {
-	uint8_t read_addr[4];
+	uint8_t Erase_addr[4];
 	uint32_t memAddr = sector*16*256;	//Each sector contains 16 pages * 256 bytes
 
 	Write_enable();
 
-	read_addr[0] = 0x20;		//Enables the Read data in Flash
-	read_addr[1] = (memAddr >> 16) & 0xFF;
-	read_addr[2] = (memAddr >> 8) & 0xFF;
-	read_addr[3] = memAddr & 0xFF;
+	Erase_addr[0] = 0x20;
+	Erase_addr[1] = (memAddr >> 16) & 0xFF;
+	Erase_addr[2] = (memAddr >> 8) & 0xFF;
+	Erase_addr[3] = memAddr & 0xFF;
 
 	csLOW();
 
-	SPI_Write(read_addr, 4);
+	SPI_Write(Erase_addr, 4);
 	csHIGH();
 
 	HAL_Delay(450);	//for erasing it need 400ms delay as per datasheet
@@ -149,10 +149,19 @@ void Flash_Write(uint32_t page, uint16_t offset, uint32_t size, uint8_t *tdata)
 		{
 			data[indx++] = tdata[i+dataPosition];
 		}
-		csLOW();
 
-		SPI_Write(data, bytestosend);
-		csHIGH();
+		if(bytestosend > 250)
+		{
+			csLOW();
+			SPI_Write(data, 100);
+			SPI_Write(data, bytestosend-100);
+			csHIGH();
+		}
+		else {
+			csLOW();
+			SPI_Write(data, bytestosend);
+			csHIGH();
+		}
 
 		startPage++;
 		offset = 0;

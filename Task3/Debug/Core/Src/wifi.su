@@ -1,0 +1,3 @@
+../Core/Src/wifi.c:4:9:ESP_WaitForResponse	328	static
+../Core/Src/wifi.c:29:6:WiFi_Connect	264	static
+../Core/Src/wifi.c:64:10:get_time	512	static

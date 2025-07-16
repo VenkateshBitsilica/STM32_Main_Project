@@ -23,24 +23,24 @@
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
 #include <string.h>
-#include "Flash_Page.h"
+#include <time.h>
 #include "wifi.h"
+#include "WQ25128J_Flash.h"
 
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-#define FLASH_ADDR   ((uint32_t)0x08080000)
-#define START_FLASH_ADDR   ((uint32_t)0x08080000)
-#define END_FLASH_ADDR	((uint32_t)0x08080800)
 
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-uint32_t PageError;
-FLASH_EraseInitTypeDef erase;
-HAL_StatusTypeDef status;
+
+uint32_t External_Flash_ID;
+uint8_t rx_buffer[100];
+char tx_buffer[] = "External Flash Programming";
+uint32_t len;
 
 /* USER CODE END PD */
 
@@ -50,6 +50,8 @@ HAL_StatusTypeDef status;
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+SPI_HandleTypeDef hspi2;
+
 TIM_HandleTypeDef htim1;
 
 UART_HandleTypeDef huart1;
@@ -79,16 +81,11 @@ static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_USART1_UART_Init(void);
+static void MX_SPI2_Init(void);
 /* USER CODE BEGIN PFP */
-
-void Flash_Write(char *);
-char *Flash_Read(void);
-void Flash_erase(void);
-void Flash_Read_2kb(void);
-void Flash_Write_2kb(char *str);
-void uart_print(char *str);
-uint32_t sensor_data(void);
-
+void write_to_flash(uint16_t distance, uint32_t time);
+void read_from_flash(void);
+void print_hex(uint8_t *data, uint32_t len);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -98,9 +95,9 @@ uint32_t sensor_data(void);
 
 void uart_print(char *str)
 {
-	uint8_t line[3] = "\r\n\n";
+	uint8_t line[3] = "\r\n";
 		HAL_UART_Transmit(&huart2, (uint8_t *)str, strlen(str), 50);
-		HAL_UART_Transmit(&huart2, line, 3, 50);
+		HAL_UART_Transmit(&huart2, line, 2, 50);
 }
 
 /* USER CODE END 0 */
@@ -113,12 +110,6 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-	//Configure Flash erase
-	erase.TypeErase = FLASH_TYPEERASE_PAGES;
-	erase.Banks = FLASH_BANK_2;
-	erase.Page = 0;
-	erase.NbPages = 1;
-
 
   /* USER CODE END 1 */
 
@@ -128,6 +119,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
+  len = strlen(tx_buffer);
 
   /* USER CODE END Init */
 
@@ -143,22 +135,30 @@ int main(void)
   MX_USART2_UART_Init();
   MX_TIM1_Init();
   MX_USART1_UART_Init();
+  MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
 
-//  char *read_buf;
-//  char sample_buf[10];
-//  uint32_t read_count;
-
-
-//  uart_print("Initialization done\n");
-//  read_buf = Flash_Read();
-//  Flash_Read_2kb();
-
-//  sscanf(read_buf,"%s %ld",sample_buf, &read_count);
-//  count = read_count;
-//  printf("%s : %ld",sample_buf, read_count);
-
   WiFi_Connect();
+  Flash_Reset();
+
+  External_Flash_ID = Read_ID();
+
+  printf("ID: 0x%lx",External_Flash_ID);
+
+  if(External_Flash_ID == 0xef4018)
+  {
+//	  Flash_Write(0, 250, len, (uint8_t *)tx_buffer);
+//	  while (Flash_ReadStatus() & 0x01);
+//	  Flash_Read(0, 250, len, rx_buffer);
+
+//	  printf("rx_buffer : %s\n",rx_buffer);
+	  printf("External flash Responding\n");
+  }
+  // clear all 16 pages once
+//  for (int page = 0; page < 16; page += 16) {
+//	  Flash_Erase_sector(page / 16);
+//  }
+
 
 
   HAL_TIM_Base_Start(&htim1);
@@ -166,7 +166,7 @@ int main(void)
 
   uint32_t time = get_time();
   uint32_t cur_time = HAL_GetTick();
-  int c =0;
+  int count =0;
 
   /* USER CODE END 2 */
 
@@ -199,31 +199,20 @@ int main(void)
 	      uint32_t elapsed_ms = HAL_GetTick() - cur_time;
 	      uint32_t time_stamp = time + (elapsed_ms / 1000);
 
-	      write_data(Distance,time_stamp);
-	      c++;
-	      if(c>20)
-	      {
-	    	  read_data();
-	    	  c = 0;
-	      }
+
+	      write_to_flash(Distance,time_stamp);
+
 	      HAL_Delay(1000);
+	      count++;
+	      if(count > 10)
+	      {
+	    	  read_from_flash();
+	    	  count = 0;
+	      }
 
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-//	  char buf[100];
-//	  sprintf(buf, "Count %ld\n",count);
-//	  Flash_Write_2kb(buf);
-//
-//		  HAL_Delay(500);
-//
-//		  if(count > 50)
-//		  {
-//			  Flash_erase();
-//			  count=0;
-//		  }
-//		  count++;
-
   }
   /* USER CODE END 3 */
 }
@@ -275,6 +264,46 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief SPI2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_SPI2_Init(void)
+{
+
+  /* USER CODE BEGIN SPI2_Init 0 */
+
+  /* USER CODE END SPI2_Init 0 */
+
+  /* USER CODE BEGIN SPI2_Init 1 */
+
+  /* USER CODE END SPI2_Init 1 */
+  /* SPI2 parameter configuration*/
+  hspi2.Instance = SPI2;
+  hspi2.Init.Mode = SPI_MODE_MASTER;
+  hspi2.Init.Direction = SPI_DIRECTION_2LINES;
+  hspi2.Init.DataSize = SPI_DATASIZE_8BIT;
+  hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
+  hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
+  hspi2.Init.NSS = SPI_NSS_SOFT;
+  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_32;
+  hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
+  hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
+  hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+  hspi2.Init.CRCPolynomial = 7;
+  hspi2.Init.CRCLength = SPI_CRC_LENGTH_DATASIZE;
+  hspi2.Init.NSSPMode = SPI_NSS_PULSE_ENABLE;
+  if (HAL_SPI_Init(&hspi2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN SPI2_Init 2 */
+
+  /* USER CODE END SPI2_Init 2 */
+
 }
 
 /**
@@ -413,6 +442,9 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
@@ -420,14 +452,15 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin : PC13 */
   GPIO_InitStruct.Pin = GPIO_PIN_13;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : PC3 */
-  GPIO_InitStruct.Pin = GPIO_PIN_3;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  /*Configure GPIO pin : PC1 */
+  GPIO_InitStruct.Pin = GPIO_PIN_1;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /*Configure GPIO pin : LD2_Pin */
@@ -459,174 +492,88 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+void write_to_flash(uint16_t distance, uint32_t time)
 {
-	read_data();
-}
+    static uint16_t write_offset = 0;
+    static uint32_t write_page = 0;
 
-uint32_t sensor_data(void)
-{
+    char txbuf[64];
+    char timestamp[32];
+    time_t rawtime = time;
+    struct tm *timeinfo = gmtime(&rawtime);
+    strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", timeinfo);
 
-      __HAL_TIM_SET_COUNTER(&htim1, 0);
-      while (__HAL_TIM_GET_COUNTER (&htim1) < 10);  // wait for 10 us
-      HAL_GPIO_WritePin(TRIG_PORT, TRIG_PIN, GPIO_PIN_RESET);  // pull the TRIG pin low
+    snprintf(txbuf, sizeof(txbuf), "%s --> Distance : %d\n", timestamp, distance);
 
-      pMillis = HAL_GetTick(); // used this to avoid infinite while loop  (for timeout)
-      // wait for the echo pin to go high
-      while (!(HAL_GPIO_ReadPin (ECHO_PORT, ECHO_PIN)) && pMillis + 10 >  HAL_GetTick());
-      Value1 = __HAL_TIM_GET_COUNTER (&htim1);
+    Flash_Write_Update(write_page, write_offset, strlen(txbuf), (uint8_t *)txbuf);
 
-      pMillis = HAL_GetTick();
-      // wait for the echo pin to go low
-      while ((HAL_GPIO_ReadPin (ECHO_PORT, ECHO_PIN)) && pMillis + 50 > HAL_GetTick());
-      Value2 = __HAL_TIM_GET_COUNTER (&htim1);
-
-      //uint32_t time_stamp = time + (cur_time - HAL_GetTick());
-
-      /*
-       * Pulse width(micro sec)/58 = distance(cm)
-       * Pulse width(micro sec)/148 = distance(inch)
-       */
-      Distance = (Value2-Value1)* 0.034/2;
-
-      return Distance;
-}
-
-void Flash_Write_2kb(char *str)
-{
-    HAL_FLASH_Unlock();
-    uint64_t data;
-    uint32_t addr = START_FLASH_ADDR;
-
-    // Find next empty 64-bit slot
-    while (addr < END_FLASH_ADDR)
-    {
-        uint64_t *ptr = (uint64_t *)addr;
-        if (*ptr == 0xFFFFFFFFFFFFFFFF)
-            break;
-        addr += 8;
+    write_offset += strlen(txbuf);
+    if (write_offset >= 256) {
+        write_offset = 0;
+        write_page++;
     }
 
-    // Write 8 bytes at a time
-    uint8_t i = 0;
-    while (str[i] != '\0' && addr < END_FLASH_ADDR)
-    {
-        data = 0;
-        for (int j = 0; j < 8; j++)
-        {
-            ((uint8_t *)&data)[j] = (str[i] != '\0') ? str[i++] : '\0';
-        }
-
-        if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, addr, data) != HAL_OK)
-        {
-            printf("Flash write failed at addr 0x%lx!\r\n", addr);
-            break;
-        }
-        addr += 8;
+    if (write_page >= 16) {
+        write_page = 0;
     }
-
-    HAL_FLASH_Lock();
 
 }
 
-void Flash_Read_2kb(void)
+void read_from_flash(void)
 {
-    char *p = (char *)START_FLASH_ADDR;
-    char str[20];
-    int i = 0;
+	char rxbuf[256];
+	uint8_t page = 0;
 
-    while ((uint32_t)p < END_FLASH_ADDR)
-    {
-        char c = *p;
-        if (c == (char)0xFF) break;
+	while (page < 16)
+	{
+		memset(rxbuf, 0xFF, sizeof(rxbuf));
+		Flash_Read(page, 0, 256, (uint8_t *)rxbuf);
+//		print_hex((uint8_t *)rxbuf, 256);
 
-        	if(c != '\0')
-        		str[i++] = c;
-            if (c == '\n')
-            {
-                str[i] = '\0';
-                printf("%s", str);
-                uart_print(str);
-                i = 0;
-            }
+		int i = 0;
+		while (i < 256)
+		{
+			if ((uint8_t)rxbuf[i] == 0xFF)
+				break;
 
+			char line[128];
+			int j = 0;
 
-        p++;
-    }
+			while (i < 256 && rxbuf[i] != '\n' && rxbuf[i] != (char)0xFF && j < sizeof(line) - 1)
+			{
+				//Check for Garbage characters
+				if (rxbuf[i] >= 32 && rxbuf[i] <= 126)
+					line[j++] = rxbuf[i];
+				i++;
+			}
+
+			if (i < 256 && rxbuf[i] == '\n')
+			{
+				line[j++] = '\n';
+				i++;
+			}
+
+			line[j] = '\0';
+
+			if (j > 0 && strstr(line, "--> Distance") != NULL)
+			{
+				uart_print(line);
+				printf("%s", line);
+			}
+		}
+		page++;
+	}
 }
 
 
-
-void Flash_Write(char *str)
+void print_hex(uint8_t *data, uint32_t len)
 {
-    HAL_FLASH_Unlock();
-
-    uint64_t *flash_ptr = (uint64_t *)FLASH_ADDR;
-    uint8_t i = 0;
-    uint64_t data;
-
-	  if(HAL_FLASHEx_Erase(&erase, &PageError) != HAL_OK)
-	  {
-		  printf("Flash program failed to Erase\n");
-	  }
-
-    while (str[i] != '\0')
+	printf("Printing Hex data that Read from Flash\n");
+    for (uint32_t i = 0; i < len; i++)
     {
-        data = 0;
-
-        // Copying 8 bytes to a 64-bit buffer
-        for (int j = 0; j < 8; j++)
-        {
-            if (str[i] != '\0')
-            {
-                ((uint8_t *)&data)[j] = str[i++];
-            }
-            else
-            {
-                ((uint8_t *)&data)[j] = '\0';
-            }
-        }
-
-        if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, (uint32_t)flash_ptr++, data) != HAL_OK)
-        {
-            printf("Flash write failed!\r\n");
-            break;
-        }
+        printf("%02X ", data[i]);
+        if ((i + 1) % 16 == 0) printf("\n");
     }
-
-    HAL_FLASH_Lock();
-}
-
-
-void Flash_erase(void)
-{
-	HAL_FLASH_Unlock();
-
-	  if(HAL_FLASHEx_Erase(&erase, &PageError) != HAL_OK)
-	  {
-		  printf("Flash program failed to Erase\n");
-	  }
-	HAL_FLASH_Lock();
-}
-
-
-char* Flash_Read(void)
-{
-    char *p = (char *)FLASH_ADDR;
-    int i = 0;
-
-    while (1)
-    {
-        str[i] = *p;
-        if (str[i] == '\0')
-            break;
-        i++;
-        p++;
-    }
-    str[i] = '\0';
-    printf("Data from Flash : %s",str);
-    uart_print(str);
-    return str;
 }
 
 

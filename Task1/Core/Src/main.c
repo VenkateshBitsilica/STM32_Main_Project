@@ -168,7 +168,9 @@ int main(void)
 	  	      while ((HAL_GPIO_ReadPin (ECHO_PORT, ECHO_PIN)) && pMillis + 50 > HAL_GetTick());
 	  	      Value2 = __HAL_TIM_GET_COUNTER (&htim1);
 
-	  	      uint32_t time_stamp = time + (cur_time - HAL_GetTick());
+	  	      //uint32_t time_stamp = time + (cur_time - HAL_GetTick());
+		      uint32_t elapsed_ms = HAL_GetTick() - cur_time;
+		      uint32_t time_stamp = time + (elapsed_ms / 1000);
 
 	  	      /*
 	  	       * Pulse width(micro sec)/58 = distance(cm)
