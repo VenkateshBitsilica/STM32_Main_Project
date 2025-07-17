@@ -54,38 +54,13 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_USART1_UART_Init(void);
+uint8_t ESP_WaitForResponse(char *expected, uint32_t timeout_ms);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
-uint8_t ESP_WaitForResponse(char *expected, uint32_t timeout_ms)
-{
-    char buffer[300] = {0};
-    uint32_t timeStart = HAL_GetTick();
-    uint16_t i = 0;
-    uint8_t ch;
-
-    while ((HAL_GetTick() - timeStart) < timeout_ms && i < sizeof(buffer) - 1)
-    {
-        if (HAL_UART_Receive(&huart1, &ch, 1, 1) == HAL_OK)
-        {
-            buffer[i++] = ch;
-            buffer[i] = '\0';
-            if (strstr(buffer, expected))
-            {
-                printf("ESP8266: %s\r\n", buffer);
-                return 1;
-            }
-        }
-    }
-
-    printf("ESP8266 TIMEOUT OR FAILED: %s\r\n", buffer);
-    return 0;
-}
-
 
 /* USER CODE END 0 */
 
@@ -191,7 +166,6 @@ int main(void)
        {
            printf("Connected to ThingSpeak server.\r\n");
 
-           // Prepare HTTP GET string
            sprintf(toPost,
                    "GET /update?api_key=YE5E28DP59ZS9QLX&field1=%lu HTTP/1.1\r\n"
                    "Host: api.thingspeak.com\r\n"
@@ -395,6 +369,31 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+uint8_t ESP_WaitForResponse(char *expected, uint32_t timeout_ms)
+{
+    char buffer[300] = {0};
+    uint32_t timeStart = HAL_GetTick();
+    uint16_t i = 0;
+    uint8_t ch;
+
+    while ((HAL_GetTick() - timeStart) < timeout_ms && i < sizeof(buffer) - 1)
+    {
+        if (HAL_UART_Receive(&huart1, &ch, 1, 1) == HAL_OK)
+        {
+            buffer[i++] = ch;
+            buffer[i] = '\0';
+            if (strstr(buffer, expected))
+            {
+                printf("ESP8266: %s\r\n", buffer);
+                return 1;
+            }
+        }
+    }
+
+    printf("ESP8266 TIMEOUT OR FAILED: %s\r\n", buffer);
+    return 0;
+}
 
 /* USER CODE END 4 */
 

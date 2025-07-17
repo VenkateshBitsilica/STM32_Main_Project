@@ -158,7 +158,6 @@ int main(void)
 	      printf("WiFi Connection Failed!\r\n");
 	  }
 
-
 	  // 2. Start UDP connection to pool.ntp.org
 	  sprintf(ATcmd, "AT+CIPSTART=\"UDP\",\"pool.ntp.org\",123\r\n");
 	  HAL_UART_Transmit(&huart1, (uint8_t *)ATcmd, strlen(ATcmd), 1000);
@@ -179,7 +178,7 @@ int main(void)
 
 	  // 6. Extract time (bytes 40–43)
 	  uint32_t ntp_seconds = (rxBuf[40] << 24) | (rxBuf[41] << 16) | (rxBuf[42] << 8) | rxBuf[43];
-	  uint32_t unix_time = ntp_seconds - 2208988800;	// 1752489000
+	  uint32_t unix_time = ntp_seconds - 2208988800;	// Example time 1752489000
 
 	  printf("UNIX Time: %lu\r\n", unix_time);
 

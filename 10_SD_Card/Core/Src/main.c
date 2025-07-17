@@ -109,18 +109,14 @@ int main(void)
   MX_FATFS_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-  printf("Hello\n");
+  printf("SD Card Initialization\n");
   process_SD_card();
-   printf("1\n");
-  //print_ultrasonic_detection_entry_with_time();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	 // printf("Hello\n");
-	 // process_SD_card();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -293,7 +289,6 @@ void process_SD_card( void )
 
   do
   {
-    //Mount the SD Card
     fres = f_mount(&FatFs, "", 1);    //1=mount now
     if (fres != FR_OK)
     {
@@ -313,7 +308,6 @@ void process_SD_card( void )
 
     printf("TotalSpace : %lu bytes, FreeSpace = %lu bytes\n", totalSpace, freeSpace);
 
-    //Open the file
     fres = f_open(&fil, "Logs.txt", FA_WRITE | FA_READ | FA_CREATE_ALWAYS);
     if(fres != FR_OK)
     {
@@ -323,7 +317,7 @@ void process_SD_card( void )
 
     printf("Writing data!!!\r\n");
 
-    f_puts("Welcome to Bitsilica ", &fil);
+    f_puts("SD card opened and can able to write successfully..\r\n", &fil);
 
     f_close(&fil);
 
@@ -344,7 +338,7 @@ void process_SD_card( void )
 
     fres = f_open(&fil, "Logs.txt", FA_OPEN_APPEND | FA_WRITE);
 
-    f_puts("Work Hard\r\n", &fil);
+    f_puts("Append data to existing data in file\r\n", &fil);
     f_close(&fil);
     fres = f_open(&fil, "Logs.txt", FA_READ);
     f_gets(buf, sizeof(buf), &fil);
@@ -354,7 +348,6 @@ void process_SD_card( void )
 
   } while(0);
 
-  //We're done, so de-mount the drive
   f_mount(NULL, "", 0);
   printf("SD Card Unmounted Successfully!!!\r\n");
 }

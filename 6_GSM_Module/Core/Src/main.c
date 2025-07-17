@@ -42,10 +42,23 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+TIM_HandleTypeDef htim1;
+
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
+
+#define TRIG_PIN GPIO_PIN_14
+#define TRIG_PORT GPIOB
+#define ECHO_PIN GPIO_PIN_13
+#define ECHO_PORT GPIOB
+uint32_t pMillis;
+uint32_t Value1 = 0;
+uint32_t Value2 = 0;
+uint16_t Distance  = 0;
+
+const char *mobile_num = "+919642593997";
 
 /* USER CODE END PV */
 
@@ -54,37 +67,16 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_USART1_UART_Init(void);
+static void MX_TIM1_Init(void);
 /* USER CODE BEGIN PFP */
+
+void send_cmd(const char *cmd);
+void send_sms(const char *number, const char *message);
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
-uint8_t ESP_WaitForResponse(char *expected, uint32_t timeout_ms)
-{
-    char buffer[300] = {0};
-    uint32_t timeStart = HAL_GetTick();
-    uint16_t i = 0;
-    uint8_t ch;
-
-    while ((HAL_GetTick() - timeStart) < timeout_ms && i < sizeof(buffer) - 1)
-    {
-        if (HAL_UART_Receive(&huart1, &ch, 1, 1) == HAL_OK)
-        {
-            buffer[i++] = ch;
-            buffer[i] = '\0';
-            if (strstr(buffer, expected))
-            {
-                printf("ESP8266: %s\r\n", buffer);
-                return 1;
-            }
-        }
-    }
-
-    printf("ESP8266 TIMEOUT OR FAILED: %s\r\n", buffer);
-    return 0;
-}
 
 
 /* USER CODE END 0 */
@@ -97,6 +89,10 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
+
+	uint32_t res = 0;
+	uint8_t count = 0;
+	char buf[100];
 
   /* USER CODE END 1 */
 
@@ -120,119 +116,74 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   MX_USART1_UART_Init();
+  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
 
-  //char api[58] = "https://api.thingspeak.com/update?api_key=BRJE1GXSM5UK5UNL";
-//   char api[58] = "/update?api_key=BRJE1GXSM5UK5UNL";
-//   uint8_t f1;
-//   uint32_t f2;
-   char ATcommand[100];
-   char toPost[150];
-   uint8_t rxBuffer[150] = {0};
-   uint8_t ATisOK;
+  	send_cmd("AT");			//To check GSM module response
+  	send_cmd("ATE0");		//Disable Echo command
+  	send_cmd("AT+CFUN=1");	//Full Functionality mode
+  	send_cmd("AT+CPIN?");	//to check SIM status (Response should be "READY")
+  	send_cmd("AT+CSQ");		//to check signal strength
+  	send_cmd("AT+CREG?");	//Network registration checking
 
-	sprintf(ATcommand,"AT+RST\r\n");
-	HAL_UART_Transmit(&huart1,(uint8_t *)ATcommand,strlen(ATcommand),1000);
-	HAL_UART_Receive (&huart1, rxBuffer, 512, 100);
-	printf("RESET Response:\r\n%s\r\n", rxBuffer);
-	HAL_Delay(500);
+  	send_sms(mobile_num, "SMS from SIM800L Object Detection activated");
 
-	// Set Wi-Fi mode to Station
-	  printf("Setting WiFi Mode = Station...\r\n");
-	  sprintf(ATcommand, "AT+CWMODE_CUR=1\r\n");
-	  memset(rxBuffer, 0, sizeof(rxBuffer));
-	  HAL_UART_Transmit(&huart1, (uint8_t *)ATcommand, strlen(ATcommand), 1000);
-	  HAL_UART_Receive(&huart1, rxBuffer, sizeof(rxBuffer), 1000);
-	  printf("CWMODE Response:\r\n%s\r\n", rxBuffer);
+    HAL_TIM_Base_Start(&htim1);
+    HAL_GPIO_WritePin(TRIG_PORT, TRIG_PIN, GPIO_PIN_RESET);
 
-	  printf("Connecting to WiFi: venky...\r\n");
-	  sprintf(ATcommand, "AT+CWJAP_CUR=\"venky\",\"11223344\"\r\n");
-	  HAL_UART_Transmit(&huart1, (uint8_t *)ATcommand, strlen(ATcommand), 1000);
-
-	  // Use the new function to wait for full response
-	  if (ESP_WaitForResponse("OK", 15000) || ESP_WaitForResponse("WIFI GOT IP", 15000))
-	  {
-	      printf("WiFi Connected Successfully!\r\n");
-	  }
-	  else
-	  {
-	      printf("WiFi Connection Failed!\r\n");
-	  }
-
-
-   ATisOK = 0;
-   while(!ATisOK){
-     sprintf(ATcommand,"AT+CIPMUX=0\r\n");
-     memset(rxBuffer,0,sizeof(rxBuffer));
-     HAL_UART_Transmit(&huart1,(uint8_t *)ATcommand,strlen(ATcommand),1000);
-     HAL_UART_Receive (&huart1, rxBuffer, 512, 1000);
-     if (ESP_WaitForResponse("OK", 5000))
-     {
-    	 ATisOK = 1;
-     }
-
-   }
-
-    /* USER CODE END 2 */
+  /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-   uint32_t counter = 0;
+  while (1)
+  {
+	  	  HAL_GPIO_WritePin(TRIG_PORT, TRIG_PIN, GPIO_PIN_SET);  // pull the TRIG pin HIGH
+	      __HAL_TIM_SET_COUNTER(&htim1, 0);
+	      while (__HAL_TIM_GET_COUNTER (&htim1) < 10);
+	      HAL_GPIO_WritePin(TRIG_PORT, TRIG_PIN, GPIO_PIN_RESET);  // pull the TRIG pin low
 
-   while (1)
-   {
-       printf("Connecting to ThingSpeak...\r\n");
+	      pMillis = HAL_GetTick();
+	      // wait for the echo pin to go high
+	      while (!(HAL_GPIO_ReadPin (ECHO_PORT, ECHO_PIN)) && pMillis + 10 >  HAL_GetTick());
+	      Value1 = __HAL_TIM_GET_COUNTER (&htim1);
 
-       // Start TCP connection
-       sprintf(ATcommand, "AT+CIPSTART=\"TCP\",\"api.thingspeak.com\",80\r\n");
-       HAL_UART_Transmit(&huart1, (uint8_t *)ATcommand, strlen(ATcommand), 1000);
+	      pMillis = HAL_GetTick();
+	      // wait for the echo pin to go low
+	      while ((HAL_GPIO_ReadPin (ECHO_PORT, ECHO_PIN)) && pMillis + 50 > HAL_GetTick());
+	      Value2 = __HAL_TIM_GET_COUNTER (&htim1);
 
-       if (ESP_WaitForResponse("CONNECT", 5000) || ESP_WaitForResponse("ALREADY CONNECTED", 5000))
-       {
-           printf("Connected to ThingSpeak server.\r\n");
+	      /*
+	       * Pulse width(micro sec)/58 = distance(cm)
+	       * Pulse width(micro sec)/148 = distance(inch)
+	       */
+	      Distance = (Value2-Value1)* 0.034/2;
 
-           // Prepare HTTP GET string
-           sprintf(toPost,
-                   "GET /update?api_key=YE5E28DP59ZS9QLX&field1=%lu HTTP/1.1\r\n"
-                   "Host: api.thingspeak.com\r\n"
-                   "Connection: close\r\n\r\n", counter);
+	      if(count < 10)
+	      {
+	    	  res = res + Distance;
+	    	  count++;
+	      }
+	      else
+	      {
+	    	  res = res/count;
 
-           // Send AT+CIPSEND
-           sprintf(ATcommand, "AT+CIPSEND=%d\r\n", strlen(toPost));
-           HAL_UART_Transmit(&huart1, (uint8_t *)ATcommand, strlen(ATcommand), 1000);
+	    	  if((res <= 10) && (res > 0))
+	    	  {
+	    		  memset(buf, 0, sizeof(buf));
+	    		  sprintf(buf, "Pay Attention : Object detected at %ld cm",res);
+	    		  send_sms(mobile_num, buf);
+	    		  printf("%s\r\n",buf);
+	    	  }
+	    	  count = 0;
+	    	  res = 0;
+	      }
 
-           if (ESP_WaitForResponse(">", 3000))
-           {
-               // Send actual GET request
-               HAL_UART_Transmit(&huart1, (uint8_t *)toPost, strlen(toPost), 1000);
+	      HAL_Delay(300);
 
-               if (ESP_WaitForResponse("OK", 5000) || ESP_WaitForResponse("SEND OK", 5000))
-               {
-                   printf("Data sent to ThingSpeak: Counter = %lu\r\n", counter);
-               }
-               else
-               {
-                   printf("Failed to send data.\r\n");
-               }
-           }
-           else
-           {
-               printf("CIPSEND failed. ESP8266 not ready.\r\n");
-           }
+    /* USER CODE END WHILE */
 
-           counter++;
-           if(counter > 5)
-        	   counter = 0;
-       }
-       else
-       {
-           printf("ThingSpeak TCP connection failed.\r\n");
-       }
-
-       HAL_Delay(15000);
-       /* USER CODE BEGIN 3 */
-   }
-
+    /* USER CODE BEGIN 3 */
+  }
   /* USER CODE END 3 */
 }
 
@@ -261,10 +212,10 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
   RCC_OscInitStruct.PLL.PLLM = 1;
-  RCC_OscInitStruct.PLL.PLLN = 10;
+  RCC_OscInitStruct.PLL.PLLN = 20;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV7;
   RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
-  RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
+  RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV4;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -283,6 +234,53 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief TIM1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM1_Init(void)
+{
+
+  /* USER CODE BEGIN TIM1_Init 0 */
+
+  /* USER CODE END TIM1_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM1_Init 1 */
+
+  /* USER CODE END TIM1_Init 1 */
+  htim1.Instance = TIM1;
+  htim1.Init.Prescaler = 80-1;
+  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim1.Init.Period = 65535;
+  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim1.Init.RepetitionCounter = 0;
+  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterOutputTrigger2 = TIM_TRGO2_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM1_Init 2 */
+
+  /* USER CODE END TIM1_Init 2 */
+
 }
 
 /**
@@ -376,6 +374,9 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_RESET);
+
   /*Configure GPIO pin : B1_Pin */
   GPIO_InitStruct.Pin = B1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
@@ -389,12 +390,106 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : PB13 */
+  GPIO_InitStruct.Pin = GPIO_PIN_13;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PB14 */
+  GPIO_InitStruct.Pin = GPIO_PIN_14;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
   /* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
+void send_cmd(const char *cmd)
+{
+    char tx_buf[100] = {0};
+    char rx_buf[200] = {0};
+    uint8_t ch;
+    int idx = 0;
+
+    snprintf(tx_buf, sizeof(tx_buf), "%s\r\n", cmd);
+    HAL_UART_Transmit(&huart1, (uint8_t *)tx_buf, strlen(tx_buf), HAL_MAX_DELAY);
+
+    uint32_t start_tick = HAL_GetTick();
+    while ((HAL_GetTick() - start_tick) < 1000)
+    {
+        if (HAL_UART_Receive(&huart1, &ch, 1, 10) == HAL_OK)
+        {
+            if (idx < sizeof(rx_buf) - 1)
+                rx_buf[idx++] = ch;
+
+            if (strstr(rx_buf, "OK\r\n") || strstr(rx_buf, "ERROR\r\n"))
+                break;
+        }
+    }
+
+    rx_buf[idx] = '\0';
+    printf("%s Response:\r\n%s\r\n", cmd, rx_buf);
+    HAL_Delay(500);
+}
+
+void send_sms(const char *number, const char *message)
+{
+    char cmd[50];
+    uint8_t ch;
+    char resp[200] = {0};
+    int idx = 0;
+
+    // Set text mode
+    send_cmd("AT+CMGF=1");
+    send_cmd("AT+CSCS=\"GSM\"");
+
+    // Compose CMGS command
+    snprintf(cmd, sizeof(cmd), "AT+CMGS=\"%s\"", number);
+    HAL_UART_Transmit(&huart1, (uint8_t *)cmd, strlen(cmd), HAL_MAX_DELAY);
+    HAL_UART_Transmit(&huart1, (uint8_t *)"\r", 1, HAL_MAX_DELAY);
+
+    uint32_t start = HAL_GetTick();
+    while ((HAL_GetTick() - start) < 3000)
+    {
+        if (HAL_UART_Receive(&huart1, &ch, 1, 100) == HAL_OK)
+        {
+            resp[idx++] = ch;
+            if (ch == '>') break;
+        }
+    }
+
+    if (!strchr(resp, '>')) {
+        printf("Didn't receive '>' prompt. SMS not sent.\r\n");
+        return;
+    }
+
+    printf("Sending SMS to %s...\r\n", number);
+    HAL_UART_Transmit(&huart1, (uint8_t *)message, strlen(message), HAL_MAX_DELAY);
+
+    // CTRL+Z(command value 26) to end SMS
+    uint8_t end_char = 0x1A;
+    HAL_UART_Transmit(&huart1, &end_char, 1, HAL_MAX_DELAY);
+
+    idx = 0;
+    memset(resp, 0, sizeof(resp));
+    start = HAL_GetTick();
+    while ((HAL_GetTick() - start) < 5000)
+    {
+        if (HAL_UART_Receive(&huart1, &ch, 1, 100) == HAL_OK)
+        {
+            resp[idx++] = ch;
+            if (strstr(resp, "OK\r\n") || strstr(resp, "ERROR\r\n"))
+                break;
+        }
+    }
+
+    printf("SMS Send Response:\r\n%s\r\n", resp);
+}
 
 /* USER CODE END 4 */
 

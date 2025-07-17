@@ -7,8 +7,7 @@
 ../Core/Src/WQ25128J_Flash.c:72:6:Flash_Read	1
 ../Core/Src/WQ25128J_Flash.c:91:6:Write_enable	1
 ../Core/Src/WQ25128J_Flash.c:102:6:Write_disable	1
-../Core/Src/WQ25128J_Flash.c:113:10:bytes_to_write	2
-../Core/Src/WQ25128J_Flash.c:122:10:bytes_to_modify	2
-../Core/Src/WQ25128J_Flash.c:128:6:Flash_Erase_sector	1
-../Core/Src/WQ25128J_Flash.c:156:6:Flash_Write	3
-../Core/Src/WQ25128J_Flash.c:243:6:Flash_Write_Update	8
+../Core/Src/WQ25128J_Flash.c:116:10:bytes_to_modify	2
+../Core/Src/WQ25128J_Flash.c:122:6:Flash_Erase_sector	1
+../Core/Src/WQ25128J_Flash.c:150:6:Flash_Write	3
+../Core/Src/WQ25128J_Flash.c:237:6:Flash_Write_Update	8
