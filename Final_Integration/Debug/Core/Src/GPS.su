@@ -1,0 +1,4 @@
+../Core/Src/GPS.c:17:7:NMEA_to_Decimal	32	static
+../Core/Src/GPS.c:25:6:Parse_GPS_Data	32	static
+../Core/Src/GPS.c:46:5:Validate_GPS_data	32	static
+../Core/Src/GPS.c:110:6:HAL_UART_RxCpltCallback	16	static

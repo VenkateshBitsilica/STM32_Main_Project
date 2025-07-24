@@ -1,7 +1,7 @@
 ../Core/Src/WiFi.c:64:9:ESP_WaitForResponse	328	static
 ../Core/Src/WiFi.c:96:5:main	600	static
-../Core/Src/WiFi.c:204:6:SystemClock_Config	96	static
-../Core/Src/WiFi.c:254:13:MX_USART1_UART_Init	8	static
-../Core/Src/WiFi.c:289:13:MX_USART2_UART_Init	8	static
-../Core/Src/WiFi.c:324:13:MX_GPIO_Init	48	static
-../Core/Src/WiFi.c:366:6:Error_Handler	4	static,ignoring_inline_asm
+../Core/Src/WiFi.c:203:6:SystemClock_Config	96	static
+../Core/Src/WiFi.c:253:13:MX_USART1_UART_Init	8	static
+../Core/Src/WiFi.c:288:13:MX_USART2_UART_Init	8	static
+../Core/Src/WiFi.c:323:13:MX_GPIO_Init	48	static
+../Core/Src/WiFi.c:365:6:Error_Handler	4	static,ignoring_inline_asm
